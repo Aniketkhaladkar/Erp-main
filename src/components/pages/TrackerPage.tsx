@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 
 const priorityColors: Record<string, string> = { high: 'text-destructive', medium: 'text-yellow-600', low: 'text-green-600' };
 const statusColors: Record<string, any> = { to_do: 'secondary', in_progress: 'outline', done: 'default' };
-const emptyForm = { team_member_id: '', title: '', description: '', deadline: '', priority: 'medium', status: 'to_do', project_id: '' };
+const emptyForm = { team_member_id: '', title: '', company_name: '', description: '', deadline: '', priority: 'medium', status: 'to_do', project_id: '' };
 
 export function TrackerPage({ businessUnit }: { businessUnit: 'tek' | 'strategies' }) {
   const buId = useBusinessUnit(businessUnit);
@@ -55,13 +55,13 @@ export function TrackerPage({ businessUnit }: { businessUnit: 'tek' | 'strategie
   const openAdd = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (t: any) => {
     setEditing(t);
-    setForm({ team_member_id: t.team_member_id, title: t.title, description: t.description ?? '', deadline: t.deadline ?? '', priority: t.priority, status: t.status, project_id: t.project_id ?? '' });
+    setForm({ team_member_id: t.team_member_id, title: t.title, company_name: t.company_name ?? '', description: t.description ?? '', deadline: t.deadline ?? '', priority: t.priority, status: t.status, project_id: t.project_id ?? '' });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     if (!form.team_member_id || !form.title) { toast.error('Member and title required'); return; }
-    const payload = { team_member_id: form.team_member_id, title: form.title, description: form.description || null, deadline: form.deadline || null, priority: form.priority, status: form.status, project_id: form.project_id || null };
+    const payload = { team_member_id: form.team_member_id, title: form.title, company_name: form.company_name || null, description: form.description || null, deadline: form.deadline || null, priority: form.priority, status: form.status, project_id: form.project_id || null };
     if (editing) { await supabase.from('tasks').update(payload).eq('id', editing.id); toast.success('Task updated'); }
     else { await supabase.from('tasks').insert(payload); toast.success('Task assigned'); }
     setDialogOpen(false); refresh();
@@ -121,7 +121,7 @@ export function TrackerPage({ businessUnit }: { businessUnit: 'tek' | 'strategie
         <div className="rounded-md border">
           <Table>
             <TableHeader><TableRow>
-              <TableHead>Title</TableHead><TableHead>Assigned To</TableHead><TableHead>Project</TableHead>
+              <TableHead>Title</TableHead><TableHead>Company</TableHead><TableHead>Assigned To</TableHead><TableHead>Project</TableHead>
               <TableHead>Priority</TableHead><TableHead>Status</TableHead><TableHead>Deadline</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow></TableHeader>
@@ -129,6 +129,7 @@ export function TrackerPage({ businessUnit }: { businessUnit: 'tek' | 'strategie
               {filtered.map((t: any) => (
                 <TableRow key={t.id} className="even:bg-muted/30">
                   <TableCell className="font-medium">{t.title}</TableCell>
+                  <TableCell>{t.company_name ?? '—'}</TableCell>
                   <TableCell>{t.team_members?.name ?? '—'}</TableCell>
                   <TableCell>{t.projects?.name ?? '—'}</TableCell>
                   <TableCell><Badge variant="outline" className={cn('capitalize', priorityColors[t.priority])}>{t.priority}</Badge></TableCell>
@@ -159,6 +160,7 @@ export function TrackerPage({ businessUnit }: { businessUnit: 'tek' | 'strategie
           <DialogHeader><DialogTitle>{editing ? 'Edit Task' : 'Assign Task'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1"><Label>Title</Label><Input value={form.title} onChange={e => setForm({...form, title: e.target.value})} /></div>
+            <div className="space-y-1"><Label>Company Name</Label><Input placeholder="e.g. Ayufresh" value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} /></div>
             <div className="space-y-1"><Label>Assign To</Label>
               <Select value={form.team_member_id} onValueChange={v => setForm({...form, team_member_id: v})}>
                 <SelectTrigger><SelectValue placeholder="Select member" /></SelectTrigger>

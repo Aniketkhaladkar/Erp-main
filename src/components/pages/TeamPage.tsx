@@ -48,9 +48,19 @@ export function TeamPage({ businessUnit }: { businessUnit: 'tek' | 'strategies' 
       }
       toast.success('Member updated');
     } else {
-      // Create auth account if password provided
+      // Create auth account if password provided.
+      //
+      // IMPORTANT: supabase.auth.signUp() replaces the CURRENT session with
+      // the newly-created user's session. If we don't restore the admin's
+      // session afterwards, the admin is silently logged in as the new
+      // employee — which then breaks the list (the new member gets hidden
+      // by the "don't show current user" filter below) and breaks admin's
+      // ability to perform further writes.
       let userId: string | null = null;
       if (form.password && form.email) {
+        // 1. Snapshot the admin's current session so we can restore it.
+        const { data: { session: adminSession } } = await supabase.auth.getSession();
+        // 2. Create the new auth account (this hijacks our session).
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: form.email,
           password: form.password,
@@ -58,9 +68,17 @@ export function TeamPage({ businessUnit }: { businessUnit: 'tek' | 'strategies' 
         });
         if (authError) { toast.error('Auth error: ' + authError.message); return; }
         userId = authData.user?.id ?? null;
+        // 3. Restore the admin's session so they stay logged in.
+        if (adminSession) {
+          await supabase.auth.setSession({
+            access_token: adminSession.access_token,
+            refresh_token: adminSession.refresh_token,
+          });
+        }
       }
-      const { data: member } = await supabase.from('team_members').insert({ ...payload, user_id: userId }).select('id').single();
-      // Assign employee role
+      const { data: member, error: insertError } = await supabase.from('team_members').insert({ ...payload, user_id: userId }).select('id').single();
+      if (insertError) { toast.error('Insert error: ' + insertError.message); return; }
+      // Assign role (defaults to 'employee' unless admin picked something else)
       if (userId && member) {
         await supabase.from('user_roles').insert({ user_id: userId, role: form.app_role as any });
       }

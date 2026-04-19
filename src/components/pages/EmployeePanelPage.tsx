@@ -47,9 +47,34 @@ export function EmployeePanelPage() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('team_members').select('*').eq('user_id', user.id).single().then(({ data }) => {
-      if (data) setMember(data);
-    });
+    (async () => {
+      // 1. Prefer a team_members row already linked to this auth user.
+      const { data: linked } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (linked) { setMember(linked); return; }
+
+      // 2. Fallback: an unlinked row whose email matches this user's email.
+      //    This covers the case where an admin created the team_member BEFORE
+      //    the manager / team_lead / employee signed up, so user_id was never
+      //    set. We auto-link here so their tasks start showing in My Tasks.
+      if (!user.email) return;
+      const { data: byEmail } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('email', user.email)
+        .is('user_id', null)
+        .maybeSingle();
+      if (byEmail) {
+        const { error } = await supabase
+          .from('team_members')
+          .update({ user_id: user.id })
+          .eq('id', byEmail.id);
+        if (!error) setMember({ ...byEmail, user_id: user.id });
+      }
+    })();
   }, [user]);
 
   useEffect(() => {
